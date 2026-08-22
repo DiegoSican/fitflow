@@ -24,5 +24,33 @@ services:
       timeout: 5s
       retries: 5
 
+
+  booking-db:
+    image: postgres:16-alpine
+    container_name: fitflow-booking-db
+
+    environment:
+      POSTGRES_DB: ${BOOKING_DB_NAME}
+      POSTGRES_USER: ${BOOKING_DB_USER}
+      POSTGRES_PASSWORD: ${BOOKING_DB_PASSWORD}
+
+    ports:
+      - "5434:5432"
+
+    volumes:
+      - booking-db-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${BOOKING_DB_USER} -d ${BOOKING_DB_NAME}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
 volumes:
   users-db-data:
+  booking-db-data:
