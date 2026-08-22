@@ -1,14 +1,31 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from app.database import check_database_connection
+from app.database import Base, check_database_connection, engine
+from app.routes import router
+from app.seed import seed_classes
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+
+    seed_classes()
+
+    yield
 
 
 app = FastAPI(
     title="FitFlow Booking Service",
     description="Microservicio encargado de la gestión de clases y reservas",
     version="0.1.0",
+    lifespan=lifespan,
 )
+
+
+app.include_router(router)
 
 
 @app.get("/")
