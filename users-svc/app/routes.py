@@ -5,8 +5,19 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import User
-from app.schemas import UserCreate, UserResponse
-from app.security import hash_password
+from app.schemas import (
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+)
+
+from app.security import (
+    JWT_EXPIRATION_MINUTES,
+    create_access_token,
+    hash_password,
+    verify_password,
+)
 
 
 router = APIRouter(
@@ -57,3 +68,36 @@ def register_user(
         )
 
     return user
+
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+)
+def login_user(
+    credentials: UserLogin,
+    db: Session = Depends(get_db),
+):
+    email = credentials.email.lower()
+
+    user = db.scalar(
+        select(User).where(User.email == email)
+    )
+
+    if not user or not verify_password(
+        credentials.password,
+        user.password_hash,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+        )
+
+    access_token = create_access_token(
+        user_id=user.id,
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": JWT_EXPIRATION_MINUTES * 60,
+    }
