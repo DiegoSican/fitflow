@@ -1,20 +1,28 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user_id
 from app.database import get_db
-from app.models import FitnessClass
-from app.schemas import ClassResponse
-
-
-router = APIRouter(
-    tags=["classes"],
+from app.models import Booking, FitnessClass
+from app.schemas import (
+    BookingCreate,
+    BookingResponse,
+    ClassResponse,
 )
 
+
+router = APIRouter()
+
+
+# =========================================================
+# Listar clases disponibles
+# =========================================================
 
 @router.get(
     "/classes",
     response_model=list[ClassResponse],
+    tags=["classes"],
 )
 def get_available_classes(
     db: Session = Depends(get_db),
@@ -26,3 +34,71 @@ def get_available_classes(
     ).all()
 
     return classes
+
+
+# =========================================================
+# Crear reserva
+# =========================================================
+
+@router.post(
+    "/bookings",
+    response_model=BookingResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["bookings"],
+)
+def create_booking(
+    booking_data: BookingCreate,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    fitness_class = db.get(
+        FitnessClass,
+        booking_data.class_id,
+    )
+
+    if not fitness_class:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Class not found.",
+        )
+
+    existing_booking = db.scalar(
+        select(Booking).where(
+            Booking.user_id == user_id,
+            Booking.class_id == booking_data.class_id,
+            Booking.status == "active",
+        )
+    )
+
+    if existing_booking:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User already has an active booking for this class.",
+        )
+
+    active_bookings = db.scalar(
+        select(func.count())
+        .select_from(Booking)
+        .where(
+            Booking.class_id == booking_data.class_id,
+            Booking.status == "active",
+        )
+    )
+
+    if active_bookings >= fitness_class.capacity:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Class is full.",
+        )
+
+    booking = Booking(
+        user_id=user_id,
+        class_id=booking_data.class_id,
+        status="active",
+    )
+
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    return booking
