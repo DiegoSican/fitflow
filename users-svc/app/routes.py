@@ -11,7 +11,6 @@ from app.schemas import (
     UserLogin,
     UserResponse,
 )
-
 from app.security import (
     JWT_EXPIRATION_MINUTES,
     create_access_token,
@@ -25,6 +24,10 @@ router = APIRouter(
     tags=["users"],
 )
 
+
+# =========================================================
+# Registrar usuario
+# =========================================================
 
 @router.post(
     "/register",
@@ -69,6 +72,11 @@ def register_user(
 
     return user
 
+
+# =========================================================
+# Login
+# =========================================================
+
 @router.post(
     "/login",
     response_model=TokenResponse,
@@ -101,3 +109,26 @@ def login_user(
         "token_type": "bearer",
         "expires_in": JWT_EXPIRATION_MINUTES * 60,
     }
+
+
+# =========================================================
+# Obtener perfil de usuario por ID
+# =========================================================
+
+@router.get(
+    "/{user_id}",
+    response_model=UserResponse,
+)
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    user = db.get(User, user_id)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    return user
