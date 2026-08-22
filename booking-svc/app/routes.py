@@ -102,3 +102,81 @@ def create_booking(
     db.refresh(booking)
 
     return booking
+
+# =========================================================
+# Consultar reserva por ID
+# =========================================================
+
+@router.get(
+    "/bookings/{booking_id}",
+    response_model=BookingResponse,
+    tags=["bookings"],
+)
+def get_booking(
+    booking_id: int,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    booking = db.get(
+        Booking,
+        booking_id,
+    )
+
+    if not booking:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Booking not found.",
+        )
+
+    if booking.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this booking.",
+        )
+
+    return booking
+
+# =========================================================
+# Cancelar reserva
+# =========================================================
+
+@router.delete(
+    "/bookings/{booking_id}",
+    response_model=BookingResponse,
+    tags=["bookings"],
+)
+def cancel_booking(
+    booking_id: int,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    booking = db.get(
+        Booking,
+        booking_id,
+    )
+
+    if not booking:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Booking not found.",
+        )
+
+    if booking.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to cancel this booking.",
+        )
+
+    if booking.status == "cancelled":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Booking is already cancelled.",
+        )
+
+    booking.status = "cancelled"
+
+    db.commit()
+    db.refresh(booking)
+
+    return booking
+
