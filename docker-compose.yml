@@ -49,8 +49,34 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    
+  
+  notif-db:
+    image: postgres:16-alpine
+    container_name: fitflow-notif-db
 
+    environment:
+      POSTGRES_DB: ${NOTIF_DB_NAME}
+      POSTGRES_USER: ${NOTIF_DB_USER}
+      POSTGRES_PASSWORD: ${NOTIF_DB_PASSWORD}
+
+    ports:
+      - "5435:5432"
+
+    volumes:
+      - notif-db-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${NOTIF_DB_USER} -d ${NOTIF_DB_NAME}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   users-db-data:
   booking-db-data:
+  notif-db-data:
