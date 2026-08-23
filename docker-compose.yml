@@ -1,4 +1,9 @@
 services:
+
+  # ======================================================
+  # USERS DATABASE
+  # ======================================================
+
   users-db:
     image: postgres:16-alpine
     container_name: fitflow-users-db
@@ -25,6 +30,10 @@ services:
       retries: 5
 
 
+  # ======================================================
+  # BOOKING DATABASE
+  # ======================================================
+
   booking-db:
     image: postgres:16-alpine
     container_name: fitflow-booking-db
@@ -49,8 +58,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    
-  
+
+
+  # ======================================================
+  # NOTIFICATION DATABASE
+  # ======================================================
+
   notif-db:
     image: postgres:16-alpine
     container_name: fitflow-notif-db
@@ -75,6 +88,128 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+
+  # ======================================================
+  # USERS SERVICE
+  # ======================================================
+
+  users-svc:
+    build:
+      context: ./users-svc
+      dockerfile: Dockerfile
+
+    container_name: fitflow-users-svc
+
+    environment:
+      USERS_DB_NAME: ${USERS_DB_NAME}
+      USERS_DB_USER: ${USERS_DB_USER}
+      USERS_DB_PASSWORD: ${USERS_DB_PASSWORD}
+      USERS_DB_HOST: users-db
+      USERS_DB_PORT: "5432"
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES}
+
+    ports:
+      - "8003:8003"
+
+    depends_on:
+      users-db:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8003/readyz', timeout=2)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ======================================================
+  # BOOKING SERVICE
+  # ======================================================
+
+  booking-svc:
+    build:
+      context: ./booking-svc
+      dockerfile: Dockerfile
+
+    container_name: fitflow-booking-svc
+
+    environment:
+      BOOKING_DB_NAME: ${BOOKING_DB_NAME}
+      BOOKING_DB_USER: ${BOOKING_DB_USER}
+      BOOKING_DB_PASSWORD: ${BOOKING_DB_PASSWORD}
+      BOOKING_DB_HOST: booking-db
+      BOOKING_DB_PORT: "5432"
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+
+    ports:
+      - "8001:8001"
+
+    depends_on:
+      booking-db:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8001/readyz', timeout=2)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ======================================================
+  # NOTIFICATION SERVICE
+  # ======================================================
+
+  notif-svc:
+    build:
+      context: ./notif-svc
+      dockerfile: Dockerfile
+
+    container_name: fitflow-notif-svc
+
+    environment:
+      NOTIF_DB_NAME: ${NOTIF_DB_NAME}
+      NOTIF_DB_USER: ${NOTIF_DB_USER}
+      NOTIF_DB_PASSWORD: ${NOTIF_DB_PASSWORD}
+      NOTIF_DB_HOST: notif-db
+      NOTIF_DB_PORT: "5432"
+
+    ports:
+      - "8002:8002"
+
+    depends_on:
+      notif-db:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8002/readyz', timeout=2)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 
 volumes:
   users-db-data:
