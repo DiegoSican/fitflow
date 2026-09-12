@@ -6,10 +6,17 @@ from fastapi.responses import JSONResponse
 from app.database import Base, check_database_connection, engine
 from app.routes import router as users_router
 
+from app.consul import register_service
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+
+    register_service(
+    service_name="users-svc",
+    service_port=8003,
+)
 
     yield
 

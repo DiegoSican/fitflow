@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from app.consul import register_service
 from app.database import Base, check_database_connection, engine
 from app.routes import router
 
@@ -17,6 +18,11 @@ logging.basicConfig(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+
+    register_service(
+        service_name="notif-svc",
+        service_port=8002,
+    )
 
     yield
 

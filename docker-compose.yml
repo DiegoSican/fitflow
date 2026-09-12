@@ -1,6 +1,26 @@
 services:
 
   # ======================================================
+  # CONSUL - SERVICE REGISTRY
+  # ======================================================
+
+  consul:
+    image: hashicorp/consul:1.17
+    container_name: fitflow-consul
+
+    ports:
+      - "8500:8500"
+
+    command: agent -dev -client=0.0.0.0
+
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+
+  # ======================================================
   # USERS DATABASE
   # ======================================================
 
@@ -107,6 +127,8 @@ services:
       USERS_DB_PASSWORD: ${USERS_DB_PASSWORD}
       USERS_DB_HOST: users-db
       USERS_DB_PORT: "5432"
+      CONSUL_HOST: consul
+      CONSUL_PORT: "8500"
 
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: ${JWT_ALGORITHM}
@@ -117,6 +139,8 @@ services:
 
     depends_on:
       users-db:
+        condition: service_healthy
+      consul:
         condition: service_healthy
 
     healthcheck:
@@ -149,6 +173,8 @@ services:
       BOOKING_DB_PASSWORD: ${BOOKING_DB_PASSWORD}
       BOOKING_DB_HOST: booking-db
       BOOKING_DB_PORT: "5432"
+      CONSUL_HOST: consul
+      CONSUL_PORT: "8500"
 
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: ${JWT_ALGORITHM}
@@ -158,6 +184,8 @@ services:
 
     depends_on:
       booking-db:
+        condition: service_healthy
+      consul:
         condition: service_healthy
 
     healthcheck:
@@ -190,12 +218,16 @@ services:
       NOTIF_DB_PASSWORD: ${NOTIF_DB_PASSWORD}
       NOTIF_DB_HOST: notif-db
       NOTIF_DB_PORT: "5432"
+      CONSUL_HOST: consul
+      CONSUL_PORT: "8500"
 
     ports:
       - "8002:8002"
 
     depends_on:
       notif-db:
+        condition: service_healthy
+      consul:
         condition: service_healthy
 
     healthcheck:
@@ -210,6 +242,10 @@ services:
       timeout: 5s
       retries: 5
 
+
+# ======================================================
+# VOLUMES
+# ======================================================
 
 volumes:
   users-db-data:

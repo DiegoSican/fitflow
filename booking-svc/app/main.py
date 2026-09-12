@@ -7,12 +7,18 @@ from app.database import Base, check_database_connection, engine
 from app.routes import router
 from app.seed import seed_classes
 
+from app.consul import register_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
 
     seed_classes()
+
+    register_service(
+    service_name="booking-svc",
+    service_port=8001,
+)
 
     yield
 
