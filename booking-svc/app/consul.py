@@ -79,3 +79,57 @@ def register_service(
     )
 
     return False
+
+
+def discover_service(service_name: str) -> str | None:
+    """
+    Consulta Consul y devuelve la URL de una instancia
+    saludable del servicio solicitado.
+    """
+
+    consul_url = (
+        f"http://{CONSUL_HOST}:{CONSUL_PORT}"
+        f"/v1/health/service/{service_name}?passing=true"
+    )
+
+    try:
+        with urllib.request.urlopen(
+            consul_url,
+            timeout=3,
+        ) as response:
+            services = json.loads(
+                response.read().decode("utf-8")
+            )
+
+        if not services:
+            print(
+                f"[CONSUL] No healthy instances "
+                f"found for {service_name}"
+            )
+            return None
+
+        service = services[0]["Service"]
+
+        address = service["Address"]
+        port = service["Port"]
+
+        service_url = f"http://{address}:{port}"
+
+        print(
+            f"[CONSUL] Discovered {service_name} "
+            f"at {service_url}"
+        )
+
+        return service_url
+
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        ConnectionError,
+    ) as error:
+        print(
+            f"[CONSUL] Could not discover "
+            f"{service_name}: {error}"
+        )
+
+        return None
