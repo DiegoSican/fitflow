@@ -1,18 +1,19 @@
-import logging
-
-from fastapi import APIRouter, Depends, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Request,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Notification
+from app.observability import json_log
 from app.schemas import (
     NotificationCreate,
     NotificationResponse,
 )
-
-
-logger = logging.getLogger("notif-svc")
 
 
 router = APIRouter(
@@ -32,8 +33,11 @@ router = APIRouter(
 )
 def create_notification(
     notification_data: NotificationCreate,
+    request: Request,
     db: Session = Depends(get_db),
 ):
+    correlation_id = request.state.correlation_id
+
     notification = Notification(
         user_id=notification_data.user_id,
         message=notification_data.message.strip(),
@@ -44,13 +48,13 @@ def create_notification(
     db.commit()
     db.refresh(notification)
 
-    # Task 1:
-    # El envío de la notificación se simula mediante un log.
-    logger.info(
-        "Notification sent | notification_id=%s | user_id=%s | message=%s",
-        notification.id,
-        notification.user_id,
-        notification.message,
+    json_log(
+        service="notif-svc",
+        event="notification_sent",
+        correlation_id=correlation_id,
+        user_id=notification.user_id,
+        notification_id=notification.id,
+        message=notification.message,
     )
 
     return notification
@@ -70,8 +74,12 @@ def get_user_notifications(
 ):
     notifications = db.scalars(
         select(Notification)
-        .where(Notification.user_id == user_id)
-        .order_by(Notification.created_at.desc())
+        .where(
+            Notification.user_id == user_id
+        )
+        .order_by(
+            Notification.created_at.desc()
+        )
     ).all()
 
     return notifications

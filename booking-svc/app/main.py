@@ -9,6 +9,8 @@ from app.seed import seed_classes
 
 from app.consul import register_service
 
+from app.observability import CorrelationIdMiddleware
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -28,6 +30,11 @@ app = FastAPI(
     description="Microservicio encargado de la gestión de clases y reservas",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CorrelationIdMiddleware,
+    service_name="booking-svc",
 )
 
 

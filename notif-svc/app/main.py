@@ -8,6 +8,8 @@ from app.consul import register_service
 from app.database import Base, check_database_connection, engine
 from app.routes import router
 
+from app.observability import CorrelationIdMiddleware
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,6 +36,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CorrelationIdMiddleware,
+    service_name="notif-svc",
+)
 
 app.include_router(router)
 

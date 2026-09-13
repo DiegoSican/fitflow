@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from app.observability import json_log
 
 from app.auth import get_current_user_id
 from app.database import get_db
@@ -56,6 +57,7 @@ def get_available_classes(
 )
 def create_booking(
     booking_data: BookingCreate,
+    request: Request,
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
@@ -118,6 +120,17 @@ def create_booking(
     db.commit()
     db.refresh(booking)
 
+    correlation_id = request.state.correlation_id
+
+    json_log(
+        service="booking-svc",
+        event="booking_created",
+        correlation_id=correlation_id,
+        user_id=user_id,
+        booking_id=booking.id,
+        class_id=booking.class_id,
+    )
+
     # -----------------------------------------------------
     # Intentar notificación
     # -----------------------------------------------------
@@ -128,9 +141,10 @@ def create_booking(
     )
 
     notification_sent = send_notification(
-        user_id=user_id,
-        message=message,
-    )
+    user_id=user_id,
+    message=message,
+    correlation_id=correlation_id,
+)
 
     # -----------------------------------------------------
     # Si notif-svc falla, guardar como pendiente.
