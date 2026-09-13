@@ -6,6 +6,12 @@ El sistema está compuesto por servicios independientes para usuarios, reservas 
 
 Además, FitFlow incorpora descubrimiento dinámico de servicios con **Consul**, integración con agentes de inteligencia artificial mediante **Model Context Protocol (MCP)**, mecanismos de resiliencia y observabilidad, autenticación mediante **JWT** y comunicación entre agentes utilizando **Agent-to-Agent (A2A)**.
 
+## Video de explicación del proyecto
+
+En el siguiente video se presenta una demostración del funcionamiento de FitFlow, incluyendo la arquitectura de microservicios, Service Discovery con Consul, autenticación JWT, resiliencia, observabilidad, integración con Claude mediante MCP y comunicación Agent-to-Agent (A2A).
+
+🎥 **[FitFlow](https://drive.google.com/drive/folders/1zsR94LIaLUoZ3Ch7CDrB7pg5a_UkCoUM?usp=sharing)**
+
 ---
 
 ## Arquitectura
