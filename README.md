@@ -311,4 +311,32 @@ En el caso del secreto utilizado para JWT, durante una rotación sin downtime se
 
 Las credenciales reales nunca deben agregarse al repositorio. Si una credencial se expone accidentalmente, debe considerarse comprometida y rotarse inmediatamente.
 
+## Agent-to-Agent (A2A)
+
+FitFlow incorpora una capa Agent-to-Agent formada por tres agentes especializados:
+
+- **Orchestrator Agent (`:9000`)**: recibe la instrucción del usuario, descubre los agentes disponibles mediante sus Agent Cards y coordina el flujo.
+- **Booking Agent (`:9001`)**: especializado en reservas. Utiliza internamente FitFlow MCP para consultar clases y crear reservas.
+- **Notification Agent (`:9002`)**: especializado en notificaciones. Utiliza internamente FitFlow MCP para enviar notificaciones.
+
+Cada agente publica su Agent Card mediante `/.well-known/agent.json`. La comunicación entre los agentes utiliza mensajes A2A mediante JSON-RPC.
+
+### MCP vs A2A
+
+MCP permite que un agente utilice herramientas o sistemas externos. En FitFlow se utiliza para acceder a las operaciones reales de los microservicios.
+
+A2A permite que diferentes agentes se descubran, deleguen trabajo y colaboren entre sí. En FitFlow, el Orchestrator Agent utiliza A2A para delegar una reserva al Booking Agent y posteriormente una notificación al Notification Agent.
+
+### Flujo A2A
+
+Usuario → Orchestrator Agent → Booking Agent → MCP → booking-svc
+
+Posteriormente:
+
+Orchestrator Agent → Notification Agent → MCP → notif-svc
+
+Ejemplo de instrucción:
+
+`Reserva Yoga y avísame por notificación`
+
 FitFlow — Postgrado en Diseño y Desarrollo de Software — Universidad Galileo

@@ -268,6 +268,91 @@ services:
       booking-svc:
         condition: service_healthy
 
+  # ======================================================
+  # A2A AGENTS
+  # ======================================================
+
+  booking-agent:
+    build:
+      context: ./a2a-agents
+      dockerfile: Dockerfile
+    container_name: fitflow-booking-agent
+    environment:
+      AGENT_ROLE: booking
+      AGENT_PORT: "9001"
+      AGENT_URL: "http://booking-agent:9001"
+      MCP_URL: "http://fitflow-mcp:8000/mcp"
+    ports:
+      - "9001:9001"
+    depends_on:
+      - fitflow-mcp
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:9001/healthz')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  notification-agent:
+    build:
+      context: ./a2a-agents
+      dockerfile: Dockerfile
+    container_name: fitflow-notification-agent
+    environment:
+      AGENT_ROLE: notification
+      AGENT_PORT: "9002"
+      AGENT_URL: "http://notification-agent:9002"
+      MCP_URL: "http://fitflow-mcp:8000/mcp"
+    ports:
+      - "9002:9002"
+    depends_on:
+      - fitflow-mcp
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:9002/healthz')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  orchestrator-agent:
+    build:
+      context: ./a2a-agents
+      dockerfile: Dockerfile
+    container_name: fitflow-orchestrator-agent
+    environment:
+      AGENT_ROLE: orchestrator
+      AGENT_PORT: "9000"
+      AGENT_URL: "http://orchestrator-agent:9000"
+      BOOKING_CARD_URL: "http://booking-agent:9001/.well-known/agent.json"
+      NOTIFICATION_CARD_URL: "http://notification-agent:9002/.well-known/agent.json"
+    ports:
+      - "9000:9000"
+    depends_on:
+      booking-agent:
+        condition: service_healthy
+      notification-agent:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:9000/healthz')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 # ======================================================
 # VOLUMES

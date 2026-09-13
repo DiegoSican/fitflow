@@ -223,7 +223,33 @@ def cancel_booking(
 
     return result
 
+# =========================================================
+# TOOL 4
+# send_notification
+# =========================================================
 
+@mcp.tool()
+def send_notification(
+    user_id: int,
+    message: str,
+) -> dict:
+    """
+    Envía una notificación a un usuario de FitFlow.
+    """
+
+    notif_url = discover_service("notif-svc")
+
+    result = request_json(
+        f"{notif_url}/notifications",
+        method="POST",
+        body={
+            "user_id": user_id,
+            "message": message,
+        },
+    )
+
+    return result
+    
 # =========================================================
 # Ejecución
 # =========================================================
