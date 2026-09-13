@@ -4,7 +4,15 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user_id
 from app.database import get_db
-from app.models import Booking, FitnessClass
+from app.models import (
+    Booking,
+    FitnessClass,
+    PendingNotification,
+)
+from app.notification_client import (
+    get_circuit_breaker_state,
+    send_notification,
+)
 from app.schemas import (
     BookingCreate,
     BookingResponse,
@@ -73,7 +81,10 @@ def create_booking(
     if existing_booking:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="User already has an active booking for this class.",
+            detail=(
+                "User already has an active booking "
+                "for this class."
+            ),
         )
 
     active_bookings = db.scalar(
@@ -91,6 +102,12 @@ def create_booking(
             detail="Class is full.",
         )
 
+    # -----------------------------------------------------
+    # IMPORTANTE:
+    # Primero persistimos la reserva.
+    # La notificación NO puede impedir la reserva.
+    # -----------------------------------------------------
+
     booking = Booking(
         user_id=user_id,
         class_id=booking_data.class_id,
@@ -101,7 +118,43 @@ def create_booking(
     db.commit()
     db.refresh(booking)
 
+    # -----------------------------------------------------
+    # Intentar notificación
+    # -----------------------------------------------------
+
+    message = (
+        f"Booking {booking.id} confirmed for "
+        f"{fitness_class.name}."
+    )
+
+    notification_sent = send_notification(
+        user_id=user_id,
+        message=message,
+    )
+
+    # -----------------------------------------------------
+    # Si notif-svc falla, guardar como pendiente.
+    # La reserva YA está confirmada.
+    # -----------------------------------------------------
+
+    if not notification_sent:
+        pending_notification = PendingNotification(
+            user_id=user_id,
+            booking_id=booking.id,
+            message=message,
+            status="pending",
+        )
+
+        db.add(pending_notification)
+        db.commit()
+
+        print(
+            f"[OUTBOX] Notification for booking "
+            f"{booking.id} stored as pending"
+        )
+
     return booking
+
 
 # =========================================================
 # Consultar reserva por ID
@@ -131,10 +184,14 @@ def get_booking(
     if booking.user_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access this booking.",
+            detail=(
+                "You do not have permission "
+                "to access this booking."
+            ),
         )
 
     return booking
+
 
 # =========================================================
 # Cancelar reserva
@@ -164,7 +221,10 @@ def cancel_booking(
     if booking.user_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to cancel this booking.",
+            detail=(
+                "You do not have permission "
+                "to cancel this booking."
+            ),
         )
 
     if booking.status == "cancelled":
@@ -180,3 +240,87 @@ def cancel_booking(
 
     return booking
 
+
+# =========================================================
+# Estado del Circuit Breaker
+# =========================================================
+
+@router.get(
+    "/circuit-breaker",
+    tags=["resilience"],
+)
+def circuit_breaker_status():
+    return get_circuit_breaker_state()
+
+
+# =========================================================
+# Ver notificaciones pendientes
+# =========================================================
+
+@router.get(
+    "/pending-notifications",
+    tags=["resilience"],
+)
+def pending_notifications(
+    db: Session = Depends(get_db),
+):
+    notifications = db.scalars(
+        select(PendingNotification)
+        .where(
+            PendingNotification.status == "pending"
+        )
+        .order_by(PendingNotification.id)
+    ).all()
+
+    return [
+        {
+            "id": item.id,
+            "user_id": item.user_id,
+            "booking_id": item.booking_id,
+            "message": item.message,
+            "status": item.status,
+            "created_at": item.created_at,
+        }
+        for item in notifications
+    ]
+
+# =========================================================
+# Reprocesar notificaciones pendientes
+# =========================================================
+
+@router.post(
+    "/pending-notifications/retry",
+    tags=["resilience"],
+)
+def retry_pending_notifications(
+    db: Session = Depends(get_db),
+):
+    notifications = db.scalars(
+        select(PendingNotification)
+        .where(
+            PendingNotification.status == "pending"
+        )
+        .order_by(PendingNotification.id)
+    ).all()
+
+    processed = 0
+    remaining = 0
+
+    for item in notifications:
+        sent = send_notification(
+            user_id=item.user_id,
+            message=item.message,
+        )
+
+        if sent:
+            item.status = "sent"
+            processed += 1
+        else:
+            remaining += 1
+
+    db.commit()
+
+    return {
+        "processed": processed,
+        "remaining": remaining,
+    }

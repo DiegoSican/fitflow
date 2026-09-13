@@ -40,6 +40,7 @@ class FitnessClass(Base):
         nullable=False,
     )
 
+
 class Booking(Base):
     __tablename__ = "bookings"
 
@@ -64,6 +65,44 @@ class Booking(Base):
         String(20),
         nullable=False,
         default="active",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class PendingNotification(Base):
+    __tablename__ = "pending_notifications"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+
+    booking_id: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+
+    message: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="pending",
     )
 
     created_at: Mapped[datetime] = mapped_column(
