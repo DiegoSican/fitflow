@@ -297,10 +297,18 @@ fitflow/
 └── README.md
 ```
 
-## Estado del proyecto
+## Seguridad y rotación de credenciales
 
-### Task 1 — Microservicios + Docker — COMPLETADO
+FitFlow utiliza variables de entorno para administrar credenciales y secretos. El archivo `.env` contiene los valores reales utilizados durante la ejecución y no se almacena en Git. El archivo `.env.example` únicamente documenta las variables necesarias sin incluir credenciales reales.
 
----
+Los endpoints que crean, consultan o cancelan reservas requieren un JWT válido emitido por `users-svc`. Los tokens inválidos o expirados son rechazados con HTTP 401.
+
+### Rotación de credenciales sin downtime
+
+Para realizar una rotación de credenciales sin interrumpir el servicio se utiliza una estrategia gradual. Primero se crea o habilita la nueva credencial manteniendo temporalmente válida la anterior. Después se actualizan las variables de entorno de los servicios dependientes y se recrean de forma controlada. Una vez confirmado que todos los servicios funcionan con la nueva credencial, la credencial anterior puede ser revocada.
+
+En el caso del secreto utilizado para JWT, durante una rotación sin downtime se debe permitir temporalmente la validación con el secreto anterior mientras los tokens existentes expiran, utilizando el nuevo secreto para emitir los tokens nuevos. Cuando finaliza el período de transición, el secreto anterior se elimina.
+
+Las credenciales reales nunca deben agregarse al repositorio. Si una credencial se expone accidentalmente, debe considerarse comprometida y rotarse inmediatamente.
 
 FitFlow — Postgrado en Diseño y Desarrollo de Software — Universidad Galileo
